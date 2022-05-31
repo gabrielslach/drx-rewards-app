@@ -15,18 +15,38 @@ const sources: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       client.release();
     }
   })
+  
+  const sourceSchema = {
+    body: {
+      type: "object",
+      properties: {
+        sourceLabel: {
+          type: "string",
+        }
+      },
+      required: ['sourceLabel']
+    },
+    response: {
+      success: {
+        type: "boolean"
+      }
+    }
+  }
 
-  fastify.post('/source', async function (request, reply) {
-    const bodyStr = request.body as string;
+  type postSourceBody = {
+    sourceLabel: string
+  }
+
+  fastify.post<{ Body: postSourceBody }>('/source', { schema: sourceSchema }, async function (request, reply) {
     const client = await fastify.pg.connect();
     try {
-      const body: {sourceLabel: string} = JSON.parse(bodyStr);
+      const body = request.body;
       await client.query(
-        generics.insert(tableName, ['source_label']),
+        generics.insert(tableName, ['label']),
         [body.sourceLabel]
       );
 
-      return true;
+      return { success: true };
     } finally {
       client.release();
     }

@@ -8,11 +8,11 @@ const transactions: FastifyPluginAsync = async (fastify, opts): Promise<void> =>
     try {
       const { rows } = await client.query(
         `
-          SELECT t.id transaction_id, cus.name customer_name, s.source_label source_label, cat.type category_type, cat.name category_name
+          SELECT t.id transactionID, cus.name customerName, s.label sourceLabel, cat.type categoryType, cat.name categoryName, T.points totalPoints
           FROM transactions t 
-          INNER JOIN customer cus ON t.customer_id = cus.id
+          INNER JOIN customers cus ON t.customer_id = cus.id
           INNER JOIN sources s ON t.source_id = s.id
-          INNER JOIN category cat ON t.category_id = cat.id
+          INNER JOIN categories cat ON t.category_id = cat.id
         `
       );
 
@@ -21,18 +21,50 @@ const transactions: FastifyPluginAsync = async (fastify, opts): Promise<void> =>
       client.release();
     }
   })
+  
+  const transactionSchema = {
+    body: {
+      type: "object",
+      properties: {
+        sourceID: {
+          type: "number",
+        },
+        categoryID: {
+          type: "number",
+        },
+        customerID: {
+          type: "number",
+        },
+        points: {
+          type: "number",
+        },
+      },
+      required: ['sourceID', 'categoryID', 'customerID', 'points']
+    },
+    response: {
+      success: {
+        type: "boolean"
+      }
+    }
+  }
 
-  fastify.post('/transaction', async function (request, reply) {
-    const bodyStr = request.body as string;
+  type postTransactionBody = {
+    sourceID: number;
+    categoryID: number;
+    customerID: number;
+    points: number;
+  }
+
+  fastify.post<{ Body: postTransactionBody }>('/transaction', { schema: transactionSchema }, async function (request, reply) {
     const client = await fastify.pg.connect();
     try {
-      const body: {sourceID: number, categoryID: number, customerID: number, points: number} = JSON.parse(bodyStr);
+      const body = request.body;
       await client.query(
         generics.insert(tableName, ['source_id', 'category_id', 'customer_id', 'points']),
         [body.sourceID, body.categoryID, body.customerID, body.points]
       );
 
-      return true;
+      return { success: true };
     } finally {
       client.release();
     }

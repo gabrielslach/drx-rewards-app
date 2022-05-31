@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import generics from '../queries/generics'
 
-const tableName = "customer";
+const tableName = "customers";
 const customers: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
   fastify.get('/customers', async function (request, reply) {
     const client = await fastify.pg.connect();
@@ -16,17 +16,37 @@ const customers: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     }
   })
 
-  fastify.post('/customer', async function (request, reply) {
-    const bodyStr = request.body as string;
+  const customerSchema = {
+    body: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+        }
+      },
+      required: ['name']
+    },
+    response: {
+      success: {
+        type: "boolean"
+      }
+    }
+  }
+
+  type postCustomerBody = {
+    name: string
+  }
+
+  fastify.post<{Body: postCustomerBody}>('/customer',{ schema: customerSchema }, async function (request, reply) {
     const client = await fastify.pg.connect();
     try {
-      const body: {name: string} = JSON.parse(bodyStr);
+      const body = request.body;
       await client.query(
         generics.insert(tableName, ['name']),
         [body.name]
       );
 
-      return true;
+      return { success: true };
     } finally {
       client.release();
     }
